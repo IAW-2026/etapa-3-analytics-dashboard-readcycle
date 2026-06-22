@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import LoadingState from "@/app/components/LoadingState";
 import MetricCard from "@/app/components/MetricCard";
-import UserDistributionChart from "@/app/components/UserDistributionChart";
+import BarChart from "@/app/components/BarChart";
 import { DashboardData } from "./data";
 
 export default function Dashboard() {
@@ -86,12 +86,16 @@ export default function Dashboard() {
 
             {/* Right Section: Buyers vs Sellers vs Carriers vs Operators Bar Chart (Decoupled component) */}
             <div className="md:col-span-2">
-              <UserDistributionChart
-                sellers={data.registeredUsers.sellers}
-                buyers={data.registeredUsers.buyers}
-                carriers={data.registeredUsers.carriers}
-                operators={data.registeredUsers.operators}
-                total={data.registeredUsers.total}
+              <BarChart
+                title="Distribución de Roles de Usuario"
+                subtitle="Comparación activa entre cuentas por rol operativo"
+                noFrame
+                data={[
+                  { label: "Vendedores", value: data.registeredUsers.sellers, colorClass: "bg-brand-sage" },
+                  { label: "Compradores", value: data.registeredUsers.buyers, colorClass: "bg-brand-clay" },
+                  { label: "Carriers", value: data.registeredUsers.carriers, colorClass: "bg-brand-forest" },
+                  { label: "Operadores", value: data.registeredUsers.operators, colorClass: "bg-zinc-500" },
+                ]}
               />
             </div>
 
@@ -108,6 +112,7 @@ export default function Dashboard() {
             description="Órdenes Realizadas"
             iconColorClass="text-brand-clay"
             iconBgColorClass="bg-brand-clay/10"
+            href="/dashboard/compras"
             icon={
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9H14l1 12H4L5 9z" />
@@ -122,6 +127,7 @@ export default function Dashboard() {
             description="Envíos Gestionados"
             iconColorClass="text-brand-sage"
             iconBgColorClass="bg-brand-sage/10"
+            href="/dashboard/envios"
             icon={
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -137,6 +143,7 @@ export default function Dashboard() {
             description="Transacciones Exitosas"
             iconColorClass="text-brand-clay"
             iconBgColorClass="bg-brand-clay/10"
+            href="/dashboard/pagos"
             icon={
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
