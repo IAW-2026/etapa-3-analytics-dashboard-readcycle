@@ -11,10 +11,22 @@ export default function ComprasPage() {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    fetch("/api/dashboard/compras")
-      .then((res) => res.json())
-      .then((payload: ComprasSectionData) => {
-        setData(payload);
+    Promise.all([
+      fetch("/api/dashboard/compras").then((res) => res.json()),
+      fetch("/api/products").then((res) => res.json())
+    ])
+      .then(([comprasPayload, productsPayload]: [ComprasSectionData, any]) => {
+        const productCount = Array.isArray(productsPayload)
+          ? productsPayload.length
+          : comprasPayload.totalPublishedProducts.value;
+
+        setData({
+          ...comprasPayload,
+          totalPublishedProducts: {
+            ...comprasPayload.totalPublishedProducts,
+            value: productCount
+          }
+        });
         setLoading(false);
       })
       .catch((err) => {
@@ -23,6 +35,7 @@ export default function ComprasPage() {
       });
   }, []);
 
+
   if (loading || !data) {
     return <LoadingState />;
   }
@@ -30,11 +43,11 @@ export default function ComprasPage() {
   return (
     <div className="flex flex-col flex-1 bg-brand-beige/30 p-4 md:p-8 select-none animate-fade-in">
       <div className="max-w-5xl mx-auto w-full space-y-6">
-        
+
         {/* Back Button & Header */}
         <div className="space-y-3">
-          <Link 
-            href="/dashboard" 
+          <Link
+            href="/dashboard"
             className="inline-flex items-center gap-2 text-xs md:text-sm font-semibold text-brand-forest hover:text-brand-sage transition-colors duration-200"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -42,7 +55,7 @@ export default function ComprasPage() {
             </svg>
             Volver al Panel General
           </Link>
-          
+
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-2">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-brand-forest">{data.title}</h1>
@@ -60,9 +73,6 @@ export default function ComprasPage() {
               <h3 className="text-4xl font-extrabold tracking-tight text-brand-forest mt-2">
                 {data.totalPublishedProducts.value.toLocaleString("es-AR")}
               </h3>
-            </div>
-            <div className="mt-4 flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 w-fit px-2 py-0.5 rounded-full font-bold">
-              <span>{data.totalPublishedProducts.delta}</span>
             </div>
           </div>
 
