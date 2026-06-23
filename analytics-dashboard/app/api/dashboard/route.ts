@@ -97,6 +97,84 @@ export async function GET() {
       }
     }
 
+    // Fetch shipments from the shipping service to calculate envios metrics
+    let enviosMetric = "0";
+    let enviosStatusText = "En tránsito: 0 | Entregados: 0 | Pendientes: 0";
+    let enviosItems = mockDashboardData.sections.envios.items;
+
+    try {
+      const shippingBaseUrl = "https://proyecto-c-shipping-readcycle.vercel.app/";
+      const shippingApiKey = process.env.SHIPPING_DIRECT_KEY || process.env.SHIPPING_API_KEY || "apitoken_readcycle_2026";
+      const shippingUrl = `${shippingBaseUrl.replace(/\/$/, "")}/api/shipments/`;
+
+      const shipResponse = await fetch(shippingUrl, {
+        headers: {
+          "x-api-key": shippingApiKey
+        },
+        next: { revalidate: 0 }
+      });
+
+      if (shipResponse.ok) {
+        const shipments = await shipResponse.json() as any[];
+        enviosMetric = shipments.length.toLocaleString("es-AR");
+        
+        let pending = 0;
+        let failed = 0;
+        let delivered = 0;
+        let inTransit = 0;
+
+        for (const s of shipments) {
+          const status = (s.currentStatus || "").toUpperCase();
+          if (status === "PENDING") {
+            pending++;
+          } else if (status === "PICKED_UP" || status === "IN_TRANSIT") {
+            inTransit++;
+          } else if (status === "FAILED" || status === "CANCELLED" || status === "RETURNED" || status === "DEVUELTO") {
+            failed++;
+          } else if (status === "DELIVERED" || status === "COMPLETED") {
+            delivered++;
+          } else {
+            pending++;
+          }
+        }
+
+        enviosStatusText = `En tránsito: ${inTransit} | Entregados: ${delivered} | Pendientes: ${pending} | Fallidos: ${failed}`;
+
+        // Map recent shipments (first 4) to the items list, sorted by createdAt descending
+        const sortedShipments = [...shipments].sort((a, b) => {
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        });
+
+        enviosItems = sortedShipments.slice(0, 4).map((s) => {
+          const status = (s.currentStatus || "").toUpperCase();
+          let statusStyle = "bg-amber-100 text-amber-800";
+          let statusEsp = "Pendiente";
+          
+          if (status === "PICKED_UP" || status === "IN_TRANSIT") {
+            statusStyle = "bg-blue-100 text-blue-800";
+            statusEsp = "En Tránsito";
+          } else if (status === "DELIVERED" || status === "COMPLETED") {
+            statusStyle = "bg-emerald-100 text-emerald-800";
+            statusEsp = "Entregado";
+          } else if (status === "FAILED" || status === "CANCELLED" || status === "RETURNED" || status === "DEVUELTO") {
+            statusStyle = "bg-rose-100 text-rose-800";
+            statusEsp = "Fallido";
+          }
+
+          return {
+            id: `ENV-${s.id.substring(3, 7).toUpperCase()}`,
+            label: `Orden #${s.orderId || "S/D"}`,
+            subLabel: `ID Envío: ${s.id.substring(0, 8)}...`,
+            value: s.createdAt ? new Date(s.createdAt).toLocaleDateString("es-AR") : "S/D",
+            status: statusEsp,
+            statusStyle,
+          };
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching shipments for main dashboard overview:", err);
+    }
+
     const dashboardData = {
       ...mockDashboardData,
       registeredUsers: {
@@ -108,6 +186,15 @@ export async function GET() {
         admins,
       },
       totalAmountMoved,
+      sections: {
+        ...mockDashboardData.sections,
+        envios: {
+          ...mockDashboardData.sections.envios,
+          metric: enviosMetric,
+          statusText: enviosStatusText,
+          items: enviosItems,
+        }
+      }
     };
     console.log("Dashboard data: ", dashboardData);
 
