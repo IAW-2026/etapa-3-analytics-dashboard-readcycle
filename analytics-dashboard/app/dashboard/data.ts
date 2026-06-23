@@ -20,6 +20,7 @@ export interface DashboardData {
     buyers: number;
     carriers: number;
     operators: number;
+    admins: number;
   };
   totalAmountMoved: number;
   sections: {
@@ -32,13 +33,14 @@ export interface DashboardData {
 
 export const mockDashboardData: DashboardData = {
   registeredUsers: {
-    total: 14280,
-    sellers: 7120,
-    buyers: 5330,
-    carriers: 1450,
-    operators: 380
+    total: 0,
+    sellers: 0,
+    buyers: 0,
+    carriers: 0,
+    operators: 0,
+    admins: 0
   },
-  totalAmountMoved: 248500.00,
+  totalAmountMoved: 0,
   sections: {
     datos: {
       title: "Datos Generales del Sistema",
