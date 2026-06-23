@@ -11,10 +11,23 @@ export default function Dashboard() {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    fetch("/api/dashboard")
-      .then((res) => res.json())
-      .then((payload: DashboardData) => {
-        setData(payload);
+    Promise.all([
+      fetch("/api/dashboard").then((res) => res.json()),
+      fetch("/api/orders").then((res) => res.json())
+    ])
+      .then(([dashboardPayload, ordersPayload]: [DashboardData, any]) => {
+        const orderCount = Array.isArray(ordersPayload) ? ordersPayload.length : 0;
+
+        setData({
+          ...dashboardPayload,
+          sections: {
+            ...dashboardPayload.sections,
+            compras: {
+              ...dashboardPayload.sections.compras,
+              metric: orderCount.toLocaleString("es-AR")
+            }
+          }
+        });
         setLoading(false);
       })
       .catch((err) => {
@@ -30,7 +43,7 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col flex-1 bg-brand-beige/30 p-4 md:p-8 select-none animate-fade-in">
       <div className="max-w-7xl mx-auto w-full space-y-6">
-        
+
         {/* Dashboard Title Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
@@ -42,12 +55,12 @@ export default function Dashboard() {
         {/* 1. Large Panel (Panel Grande) */}
         <div className="bg-white/80 border border-brand-sand/50 shadow-xs rounded-xl p-6 md:p-8">
           <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-6">Métricas Principales de la Plataforma</h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-            
+
             {/* Left Section: Key Stats (Registered Users & Amount Moved) */}
             <div className="md:col-span-1 space-y-8 border-b md:border-b-0 md:border-r border-brand-sand/40 pb-6 md:pb-0 md:pr-8">
-              
+
               {/* Stat 1: Registered Users */}
               <div className="space-y-1">
                 <span className="text-xs font-semibold text-zinc-500 flex items-center gap-1.5">
@@ -60,7 +73,9 @@ export default function Dashboard() {
                   <h3 className="text-4xl font-extrabold tracking-tight text-brand-forest">
                     {data.registeredUsers.total.toLocaleString("es-AR")}
                   </h3>
-                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">+6.4%</span>
+                  <span className="text-xs font-bold text-brand-forest bg-brand-sage/20 px-2 py-0.5 rounded-full">
+                    con {data.registeredUsers.admins} admins
+                  </span>
                 </div>
                 <p className="text-[11px] text-zinc-400">Total acumulado de cuentas activas en el portal.</p>
               </div>
@@ -77,7 +92,6 @@ export default function Dashboard() {
                   <h3 className="text-4xl font-extrabold tracking-tight text-brand-forest">
                     ${data.totalAmountMoved.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
                   </h3>
-                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">+12.8%</span>
                 </div>
                 <p className="text-[11px] text-zinc-400">Volumen financiero total movilizado a la fecha.</p>
               </div>
@@ -104,7 +118,7 @@ export default function Dashboard() {
 
         {/* 2. Three Small Panels for Navigation (Metric Cards components) */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          
+
           {/* Card: Compras */}
           <MetricCard
             title="Compras"

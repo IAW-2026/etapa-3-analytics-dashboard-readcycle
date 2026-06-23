@@ -47,7 +47,8 @@ export default function LineChart({
     const maxVal = Math.max(...dataset.data, 1);
     const minVal = 0; // Baseline at 0
     const points = dataset.data.map((val, pIdx) => {
-      const x = paddingLeft + (pIdx / (labels.length - 1)) * graphWidth;
+      const divisor = labels.length > 1 ? labels.length - 1 : 1;
+      const x = paddingLeft + (pIdx / divisor) * graphWidth;
       const y = height - paddingBottom - ((val - minVal) / (maxVal - minVal)) * graphHeight;
       return { x, y, value: val };
     });
@@ -175,7 +176,8 @@ export default function LineChart({
 
           {/* X Axis Labels */}
           {labels.map((label, idx) => {
-            const x = paddingLeft + (idx / (labels.length - 1)) * graphWidth;
+            const divisor = labels.length > 1 ? labels.length - 1 : 1;
+            const x = paddingLeft + (idx / divisor) * graphWidth;
             return (
               <text
                 key={idx}

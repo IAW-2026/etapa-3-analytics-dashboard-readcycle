@@ -11,10 +11,62 @@ export default function ComprasPage() {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    fetch("/api/dashboard/compras")
-      .then((res) => res.json())
-      .then((payload: ComprasSectionData) => {
-        setData(payload);
+    Promise.all([
+      fetch("/api/dashboard/compras").then((res) => res.json()),
+      fetch("/api/products").then((res) => res.json()),
+      fetch("/api/products/categories").then((res) => res.json()),
+      fetch("/api/products/top").then((res) => res.json())
+    ])
+      .then(([comprasPayload, productsPayload, categoriesPayload, topProductsPayload]: [ComprasSectionData, any, any, any]) => {
+        const productCount = Array.isArray(productsPayload)
+          ? productsPayload.length
+          : comprasPayload.totalPublishedProducts.value;
+
+        const categoryColors: Record<string, string> = {
+          "Ficción": "#2C3A27",      // Forest
+          "Infantiles": "#4A6741",   // Sage
+          "Historia": "#D97757",     // Clay
+          "Científicos": "#A78BFA",  // Purple
+          "Autoayuda": "#FBBF24",    // Yellow
+          "Acción": "#3B82F6",       // Blue
+        };
+
+        const fallbackColors = [
+          "#A78BFA", // Purple
+          "#FBBF24", // Yellow
+          "#3B82F6", // Blue
+          "#EC4899", // Pink
+          "#14B8A6", // Teal
+          "#F97316", // Orange
+          "#6B7280"  // Gray
+        ];
+
+        let colorIndex = 0;
+        const categoriesData = Array.isArray(categoriesPayload)
+          ? categoriesPayload.map((c: { label: string; value: number }) => ({
+            label: c.label,
+            value: c.value,
+            color: categoryColors[c.label] || (() => {
+              const col = fallbackColors[colorIndex % fallbackColors.length];
+              colorIndex++;
+              return col;
+            })()
+          }))
+          : comprasPayload.categoriesData;
+
+        const topProducts = Array.isArray(topProductsPayload)
+          ? topProductsPayload
+          : comprasPayload.topProducts;
+
+        setData({
+          ...comprasPayload,
+          totalPublishedProducts: {
+            ...comprasPayload.totalPublishedProducts,
+            value: productCount
+          },
+          categoriesData,
+          topProducts
+        });
         setLoading(false);
       })
       .catch((err) => {
@@ -23,6 +75,7 @@ export default function ComprasPage() {
       });
   }, []);
 
+
   if (loading || !data) {
     return <LoadingState />;
   }
@@ -30,11 +83,11 @@ export default function ComprasPage() {
   return (
     <div className="flex flex-col flex-1 bg-brand-beige/30 p-4 md:p-8 select-none animate-fade-in">
       <div className="max-w-5xl mx-auto w-full space-y-6">
-        
+
         {/* Back Button & Header */}
         <div className="space-y-3">
-          <Link 
-            href="/dashboard" 
+          <Link
+            href="/dashboard"
             className="inline-flex items-center gap-2 text-xs md:text-sm font-semibold text-brand-forest hover:text-brand-sage transition-colors duration-200"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -42,11 +95,10 @@ export default function ComprasPage() {
             </svg>
             Volver al Panel General
           </Link>
-          
+
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-2">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-brand-forest">{data.title}</h1>
-              <p className="text-xs text-zinc-500 mt-0.5">{data.statusText}</p>
             </div>
           </div>
         </div>
@@ -60,9 +112,6 @@ export default function ComprasPage() {
               <h3 className="text-4xl font-extrabold tracking-tight text-brand-forest mt-2">
                 {data.totalPublishedProducts.value.toLocaleString("es-AR")}
               </h3>
-            </div>
-            <div className="mt-4 flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 w-fit px-2 py-0.5 rounded-full font-bold">
-              <span>{data.totalPublishedProducts.delta}</span>
             </div>
           </div>
 
