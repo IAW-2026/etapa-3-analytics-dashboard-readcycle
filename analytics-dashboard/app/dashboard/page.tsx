@@ -11,10 +11,23 @@ export default function Dashboard() {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    fetch("/api/dashboard")
-      .then((res) => res.json())
-      .then((payload: DashboardData) => {
-        setData(payload);
+    Promise.all([
+      fetch("/api/dashboard").then((res) => res.json()),
+      fetch("/api/orders").then((res) => res.json())
+    ])
+      .then(([dashboardPayload, ordersPayload]: [DashboardData, any]) => {
+        const orderCount = Array.isArray(ordersPayload) ? ordersPayload.length : 0;
+
+        setData({
+          ...dashboardPayload,
+          sections: {
+            ...dashboardPayload.sections,
+            compras: {
+              ...dashboardPayload.sections.compras,
+              metric: orderCount.toLocaleString("es-AR")
+            }
+          }
+        });
         setLoading(false);
       })
       .catch((err) => {

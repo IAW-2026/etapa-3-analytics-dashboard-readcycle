@@ -44,14 +44,14 @@ export default function ComprasPage() {
         let colorIndex = 0;
         const categoriesData = Array.isArray(categoriesPayload)
           ? categoriesPayload.map((c: { label: string; value: number }) => ({
-              label: c.label,
-              value: c.value,
-              color: categoryColors[c.label] || (() => {
-                const col = fallbackColors[colorIndex % fallbackColors.length];
-                colorIndex++;
-                return col;
-              })()
-            }))
+            label: c.label,
+            value: c.value,
+            color: categoryColors[c.label] || (() => {
+              const col = fallbackColors[colorIndex % fallbackColors.length];
+              colorIndex++;
+              return col;
+            })()
+          }))
           : comprasPayload.categoriesData;
 
         const topProducts = Array.isArray(topProductsPayload)
@@ -99,7 +99,6 @@ export default function ComprasPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-2">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-brand-forest">{data.title}</h1>
-              <p className="text-xs text-zinc-500 mt-0.5">{data.statusText}</p>
             </div>
           </div>
         </div>
