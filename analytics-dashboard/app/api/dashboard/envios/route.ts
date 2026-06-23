@@ -130,9 +130,34 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching shipping data:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error", message: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      title: "Logística y Despacho de Envíos",
+      statusText: "Sin datos disponibles (Servicio de Envíos no disponible)",
+      completionStatus: [
+        { label: "Completados", value: 0, colorClass: "bg-brand-sage" },
+        { label: "En Proceso", value: 0, colorClass: "bg-brand-clay" },
+        { label: "Cancelados", value: 0, colorClass: "bg-zinc-400" }
+      ],
+      deliveryHistory: {
+        labels: [],
+        data: []
+      },
+      shippingStates: [
+        { label: "Pendiente", value: 0, colorClass: "bg-amber-500" },
+        { label: "En Sucursal", value: 0, colorClass: "bg-indigo-500" },
+        { label: "En Tránsito", value: 0, colorClass: "bg-brand-clay" },
+        { label: "Entregado", value: 0, colorClass: "bg-brand-sage" },
+        { label: "Devuelto", value: 0, colorClass: "bg-rose-500" }
+      ],
+      stats: {
+        total: 0,
+        completadosCount: 0,
+        completadosPercent: 0,
+        enProcesoCount: 0,
+        enProcesoPercent: 0,
+        fallidosCount: 0,
+        fallidosPercent: 0,
+      }
+    });
   }
 }

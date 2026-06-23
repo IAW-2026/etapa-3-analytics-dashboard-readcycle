@@ -169,9 +169,49 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching pagos data:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error", message: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      title: "Transacciones Financieras y Pagos",
+      statusText: "Sin datos disponibles (Servicio de Pagos no disponible) | Conectores Activos: Stripe, MercadoPago, PayPal",
+      revenueAndSalesHistory: {
+        labels: [],
+        datasets: [
+          {
+            label: "Dinero Procesado ($)",
+            data: [],
+            color: "#4A6741",
+            unit: "$"
+          },
+          {
+            label: "Ventas Realizadas (cant.)",
+            data: [],
+            color: "#D97757",
+            unit: "uds"
+          }
+        ]
+      },
+      transactionStates: [
+        { label: "Aprobados", value: 0, colorClass: "bg-brand-sage" },
+        { label: "Rechazados", value: 0, colorClass: "bg-rose-500" },
+        { label: "Expirados", value: 0, colorClass: "bg-zinc-400" },
+        { label: "Pendientes", value: 0, colorClass: "bg-brand-clay" }
+      ],
+      disputeStates: [
+        { label: "Abiertas", value: 0, colorClass: "bg-rose-500" },
+        { label: "En Revisión", value: 0, colorClass: "bg-brand-clay" },
+        { label: "Favor Comprador", value: 0, colorClass: "bg-brand-sage" },
+        { label: "Favor Vendedor", value: 0, colorClass: "bg-brand-forest" }
+      ],
+      stats: {
+        totalTransactions: 0,
+        totalAmount: 0,
+        aprobadasCount: 0,
+        aprobadasPercent: 0,
+        rechazadasCount: 0,
+        rechazadasPercent: 0,
+        pendientesCount: 0,
+        pendientesPercent: 0,
+        disputasCount: 0
+      }
+    });
   }
 }

@@ -26,6 +26,6 @@ export async function GET() {
     return NextResponse.json(orders);
   } catch (error) {
     console.error("Error in /api/orders route:", error);
-    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+    return NextResponse.json([]);
   }
 }

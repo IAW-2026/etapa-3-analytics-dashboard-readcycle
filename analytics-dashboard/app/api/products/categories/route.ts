@@ -60,6 +60,6 @@ export async function GET() {
     return NextResponse.json(categoriesData);
   } catch (error) {
     console.error("Error in /api/products/categories route:", error);
-    return NextResponse.json({ error: "Failed to fetch categories data" }, { status: 500 });
+    return NextResponse.json([]);
   }
 }

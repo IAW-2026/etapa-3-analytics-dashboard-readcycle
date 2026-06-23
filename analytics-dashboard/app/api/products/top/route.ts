@@ -85,6 +85,6 @@ export async function GET() {
     return NextResponse.json(topProducts);
   } catch (error) {
     console.error("Error in /api/products/top route:", error);
-    return NextResponse.json({ error: "Failed to fetch top products" }, { status: 500 });
+    return NextResponse.json([]);
   }
 }

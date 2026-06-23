@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
-import { mockDashboardData } from "@/app/dashboard/data";
 
 export async function GET() {
   try {
-    const client = await clerkClient();
-
-    const limit = 500;
-    let offset = 0;
     let total = 0;
     let sellers = 0;
     let buyers = 0;
@@ -15,138 +10,154 @@ export async function GET() {
     let operators = 0;
     let admins = 0;
 
-    while (true) {
-      const response = await client.users.getUserList({
-        limit,
-        offset,
+    // Fetch users from Clerk
+    try {
+      const client = await clerkClient();
+      const limit = 500;
+      let offset = 0;
+
+      while (true) {
+        const response = await client.users.getUserList({
+          limit,
+          offset,
+        });
+
+        const users = response.data;
+        if (!users || users.length === 0) {
+          break;
+        }
+
+        for (const user of users) {
+          total++;
+          const publicMetadata = user.publicMetadata as { roles?: string | string[] } | undefined;
+          const roles = publicMetadata?.roles;
+
+          if (roles) {
+            const rolesList = Array.isArray(roles) ? roles : [roles];
+
+            let isSeller = false;
+            let isBuyer = false;
+            let isCarrier = false;
+            let isOperator = false;
+            let isAdmin = false;
+
+            for (const role of rolesList) {
+              if (typeof role !== 'string') continue;
+              const r = role.toUpperCase();
+              if (r === "SELLER") {
+                isSeller = true;
+              } else if (r === "BUYER") {
+                isBuyer = true;
+              } else if (r === "CARRIER") {
+                isCarrier = true;
+              } else if (r === "OPERATOR") {
+                isOperator = true;
+              } else if (r === "ADMIN") {
+                isAdmin = true;
+              }
+            }
+
+            if (isSeller) sellers++;
+            if (isBuyer) buyers++;
+            if (isCarrier) carriers++;
+            if (isOperator) operators++;
+            if (isAdmin) admins++;
+          }
+        }
+
+        if (users.length < limit) {
+          break;
+        }
+        offset += limit;
+      }
+    } catch (err) {
+      console.error("Error fetching users from Clerk:", err);
+    }
+
+    // Fetch transactions from the payments service
+    let totalAmountMoved = 0;
+    let pagosMetric = "";
+    let pagosStatusText = "";
+    let pagosItems: any[] = [];
+
+    try {
+      const paymentsBaseUrl = process.env.PAYMENT_DEPLOY_PATH || "https://proyecto-c-payments-readcycle-nlqt.vercel.app/";
+      const paymentsApiKey = process.env.TRANSACTIONS_API_KEY || "transactions_key_readcycle45679";
+      const paymentsUrl = `${paymentsBaseUrl.replace(/\/$/, "")}/api/payments/transactions`;
+
+      const txResponse = await fetch(paymentsUrl, {
+        headers: {
+          "Authorization": `Bearer ${paymentsApiKey}`
+        }
       });
 
-      const users = response.data;
-      if (!users || users.length === 0) {
-        break;
-      }
+      if (txResponse.ok) {
+        const transactions = await txResponse.json() as Array<{
+          id: string;
+          orderId: string;
+          amount: string;
+          status: string;
+          paymentMethod: string;
+          createdAt: string;
+        }>;
 
-      for (const user of users) {
-        total++;
-        const publicMetadata = user.publicMetadata as { roles?: string | string[] } | undefined;
-        const roles = publicMetadata?.roles;
+        const totalTransactions = transactions.length;
+        let aprobadasCount = 0;
+        let rechazadasCount = 0;
+        let pendientesCount = 0;
 
-        if (roles) {
-          const rolesList = Array.isArray(roles) ? roles : [roles];
+        for (const tx of transactions) {
+          const status = (tx.status || "").toUpperCase();
+          if (status === "APPROVED") {
+            totalAmountMoved += Number(tx.amount) || 0;
+            aprobadasCount++;
+          } else if (status === "REJECTED") {
+            rechazadasCount++;
+          } else {
+            pendientesCount++;
+          }
+        }
 
-          let isSeller = false;
-          let isBuyer = false;
-          let isCarrier = false;
-          let isOperator = false;
-          let isAdmin = false;
+        const aprobadasPercent = totalTransactions > 0 ? parseFloat(((aprobadasCount / totalTransactions) * 100).toFixed(1)) : 0;
+        pagosMetric = `${aprobadasPercent}%`;
+        pagosStatusText = `Aprobadas: ${aprobadasCount} | Rechazadas: ${rechazadasCount} | Pendientes: ${pendientesCount}`;
 
-          for (const role of rolesList) {
-            if (typeof role !== 'string') continue;
-            const r = role.toUpperCase();
-            if (r === "SELLER") {
-              isSeller = true;
-            } else if (r === "BUYER") {
-              isBuyer = true;
-            } else if (r === "CARRIER") {
-              isCarrier = true;
-            } else if (r === "OPERATOR") {
-              isOperator = true;
-            } else if (r === "ADMIN") {
-              isAdmin = true;
-            }
+        const sortedTransactions = [...transactions].sort((a, b) => {
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        });
+
+        pagosItems = sortedTransactions.slice(0, 4).map((t) => {
+          const status = (t.status || "").toUpperCase();
+          let statusStyle = "bg-amber-100 text-amber-800";
+          let statusEsp = "Pendiente";
+          if (status === "APPROVED") {
+            statusStyle = "bg-emerald-100 text-emerald-800";
+            statusEsp = "Aprobado";
+          } else if (status === "REJECTED") {
+            statusStyle = "bg-rose-100 text-rose-800";
+            statusEsp = "Rechazado";
           }
 
-          if (isSeller) sellers++;
-          if (isBuyer) buyers++;
-          if (isCarrier) carriers++;
-          if (isOperator) operators++;
-          if (isAdmin) admins++;
-        }
-      }
-
-      if (users.length < limit) {
-        break;
-      }
-      offset += limit;
-    }
-
-    // Fetch transactions from the payments service to calculate the total amount moved
-    const paymentsBaseUrl = process.env.PAYMENT_DEPLOY_PATH || "https://proyecto-c-payments-readcycle-nlqt.vercel.app/";
-    const paymentsApiKey = process.env.TRANSACTIONS_API_KEY || "transactions_key_readcycle45679";
-    const paymentsUrl = `${paymentsBaseUrl.replace(/\/$/, "")}/api/payments/transactions`;
-
-    const txResponse = await fetch(paymentsUrl, {
-      headers: {
-        "Authorization": `Bearer ${paymentsApiKey}`
-      }
-    });
-
-    if (!txResponse.ok) {
-      throw new Error(`Failed to fetch transactions from payments API: ${txResponse.statusText}`);
-    }
-
-    const transactions = await txResponse.json() as Array<{
-      id: string;
-      orderId: string;
-      amount: string;
-      status: string;
-      paymentMethod: string;
-      createdAt: string;
-    }>;
-
-    let totalAmountMoved = 0;
-    let totalTransactions = transactions.length;
-    let aprobadasCount = 0;
-    let rechazadasCount = 0;
-    let pendientesCount = 0;
-
-    for (const tx of transactions) {
-      const status = (tx.status || "").toUpperCase();
-      if (status === "APPROVED") {
-        totalAmountMoved += Number(tx.amount) || 0;
-        aprobadasCount++;
-      } else if (status === "REJECTED") {
-        rechazadasCount++;
+          return {
+            id: `PAG-${t.id.substring(3, 7).toUpperCase()}`,
+            label: `Orden #${t.orderId || "S/D"}`,
+            subLabel: `Método: ${t.paymentMethod || "S/D"}`,
+            value: `$${(Number(t.amount) || 0).toLocaleString("es-AR")}`,
+            status: statusEsp,
+            statusStyle,
+          };
+        });
       } else {
-        pendientesCount++;
+        console.error(`Failed to fetch transactions from payments API: ${txResponse.statusText}`);
       }
+    } catch (err) {
+      console.error("Error fetching payments for main dashboard overview:", err);
     }
 
-    const aprobadasPercent = totalTransactions > 0 ? parseFloat(((aprobadasCount / totalTransactions) * 100).toFixed(1)) : 0;
-    const pagosMetric = `${aprobadasPercent}%`;
-    const pagosStatusText = `Aprobadas: ${aprobadasCount} | Rechazadas: ${rechazadasCount} | Pendientes: ${pendientesCount}`;
-
-    // Map recent transactions (first 4 sorted by createdAt desc)
-    const sortedTransactions = [...transactions].sort((a, b) => {
-      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-    });
-
-    const pagosItems = sortedTransactions.slice(0, 4).map((t) => {
-      const status = (t.status || "").toUpperCase();
-      let statusStyle = "bg-amber-100 text-amber-800";
-      let statusEsp = "Pendiente";
-      if (status === "APPROVED") {
-        statusStyle = "bg-emerald-100 text-emerald-800";
-        statusEsp = "Aprobado";
-      } else if (status === "REJECTED") {
-        statusStyle = "bg-rose-100 text-rose-800";
-        statusEsp = "Rechazado";
-      }
-
-      return {
-        id: `PAG-${t.id.substring(3, 7).toUpperCase()}`,
-        label: `Orden #${t.orderId || "S/D"}`,
-        subLabel: `Método: ${t.paymentMethod || "S/D"}`,
-        value: `$${(Number(t.amount) || 0).toLocaleString("es-AR")}`,
-        status: statusEsp,
-        statusStyle,
-      };
-    });
-
-    // Fetch shipments from the shipping service to calculate envios metrics
-    let enviosMetric = "0";
-    let enviosStatusText = "En tránsito: 0 | Entregados: 0 | Pendientes: 0";
-    let enviosItems = mockDashboardData.sections.envios.items;
+    // Fetch shipments from the shipping service
+    let enviosMetric = "";
+    let enviosStatusText = "";
+    let enviosItems: any[] = [];
 
     try {
       const shippingBaseUrl = "https://proyecto-c-shipping-readcycle.vercel.app/";
@@ -186,7 +197,6 @@ export async function GET() {
 
         enviosStatusText = `En tránsito: ${inTransit} | Entregados: ${delivered} | Pendientes: ${pending} | Fallidos: ${failed}`;
 
-        // Map recent shipments (first 4) to the items list, sorted by createdAt descending
         const sortedShipments = [...shipments].sort((a, b) => {
           return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
         });
@@ -216,13 +226,14 @@ export async function GET() {
             statusStyle,
           };
         });
+      } else {
+        console.error(`Failed to fetch shipments: ${shipResponse.statusText}`);
       }
     } catch (err) {
       console.error("Error fetching shipments for main dashboard overview:", err);
     }
 
     const dashboardData = {
-      ...mockDashboardData,
       registeredUsers: {
         total,
         sellers,
@@ -233,30 +244,50 @@ export async function GET() {
       },
       totalAmountMoved,
       sections: {
-        ...mockDashboardData.sections,
+        datos: {
+          title: "Datos Generales del Sistema",
+          metric: "",
+          metricLabel: "",
+          statusText: "",
+          items: []
+        },
+        compras: {
+          title: "Métricas de Compras y Órdenes",
+          metric: "0",
+          metricLabel: "Órdenes Registradas",
+          statusText: "",
+          items: []
+        },
         envios: {
-          ...mockDashboardData.sections.envios,
+          title: "Logística y Despacho de Envíos",
           metric: enviosMetric,
+          metricLabel: "Envíos Totales Procesados",
           statusText: enviosStatusText,
           items: enviosItems,
         },
         pagos: {
-          ...mockDashboardData.sections.pagos,
+          title: "Transacciones Financieras y Pagos",
           metric: pagosMetric,
+          metricLabel: "Tasa de Éxito de Transacciones",
           statusText: pagosStatusText,
           items: pagosItems,
         }
       }
     };
-    console.log("Dashboard data: ", dashboardData);
 
     return NextResponse.json(dashboardData);
   } catch (error) {
-    console.error("Error fetching dashboard data from Clerk:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error", message: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    console.error("Critical error in dashboard GET API route:", error);
+    // If anything fails critically, return a valid blank DashboardData structure to keep frontend working
+    return NextResponse.json({
+      registeredUsers: { total: 0, sellers: 0, buyers: 0, carriers: 0, operators: 0, admins: 0 },
+      totalAmountMoved: 0,
+      sections: {
+        datos: { title: "Datos Generales del Sistema", metric: "", metricLabel: "", statusText: "", items: [] },
+        compras: { title: "Métricas de Compras y Órdenes", metric: "0", metricLabel: "Órdenes Registradas", statusText: "", items: [] },
+        envios: { title: "Logística y Despacho de Envíos", metric: "", metricLabel: "Envíos Totales Procesados", statusText: "", items: [] },
+        pagos: { title: "Transacciones Financieras y Pagos", metric: "", metricLabel: "Tasa de Éxito de Transacciones", statusText: "", items: [] }
+      }
+    });
   }
 }
-
