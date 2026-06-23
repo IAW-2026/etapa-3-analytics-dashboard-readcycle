@@ -124,6 +124,9 @@ export async function GET() {
       }
     };
 
+    console.log("=== ENVIOS DATA RETURNED ===");
+    console.log(JSON.stringify(data, null, 2));
+
     return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching shipping data:", error);

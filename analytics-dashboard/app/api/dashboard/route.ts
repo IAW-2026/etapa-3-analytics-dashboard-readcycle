@@ -86,16 +86,62 @@ export async function GET() {
     }
 
     const transactions = await txResponse.json() as Array<{
+      id: string;
+      orderId: string;
       amount: string;
       status: string;
+      paymentMethod: string;
+      createdAt: string;
     }>;
 
     let totalAmountMoved = 0;
+    let totalTransactions = transactions.length;
+    let aprobadasCount = 0;
+    let rechazadasCount = 0;
+    let pendientesCount = 0;
+
     for (const tx of transactions) {
-      if (tx.status === "APPROVED") {
+      const status = (tx.status || "").toUpperCase();
+      if (status === "APPROVED") {
         totalAmountMoved += Number(tx.amount) || 0;
+        aprobadasCount++;
+      } else if (status === "REJECTED") {
+        rechazadasCount++;
+      } else {
+        pendientesCount++;
       }
     }
+
+    const aprobadasPercent = totalTransactions > 0 ? parseFloat(((aprobadasCount / totalTransactions) * 100).toFixed(1)) : 0;
+    const pagosMetric = `${aprobadasPercent}%`;
+    const pagosStatusText = `Aprobadas: ${aprobadasCount} | Rechazadas: ${rechazadasCount} | Pendientes: ${pendientesCount}`;
+
+    // Map recent transactions (first 4 sorted by createdAt desc)
+    const sortedTransactions = [...transactions].sort((a, b) => {
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+
+    const pagosItems = sortedTransactions.slice(0, 4).map((t) => {
+      const status = (t.status || "").toUpperCase();
+      let statusStyle = "bg-amber-100 text-amber-800";
+      let statusEsp = "Pendiente";
+      if (status === "APPROVED") {
+        statusStyle = "bg-emerald-100 text-emerald-800";
+        statusEsp = "Aprobado";
+      } else if (status === "REJECTED") {
+        statusStyle = "bg-rose-100 text-rose-800";
+        statusEsp = "Rechazado";
+      }
+
+      return {
+        id: `PAG-${t.id.substring(3, 7).toUpperCase()}`,
+        label: `Orden #${t.orderId || "S/D"}`,
+        subLabel: `Método: ${t.paymentMethod || "S/D"}`,
+        value: `$${(Number(t.amount) || 0).toLocaleString("es-AR")}`,
+        status: statusEsp,
+        statusStyle,
+      };
+    });
 
     // Fetch shipments from the shipping service to calculate envios metrics
     let enviosMetric = "0";
@@ -193,6 +239,12 @@ export async function GET() {
           metric: enviosMetric,
           statusText: enviosStatusText,
           items: enviosItems,
+        },
+        pagos: {
+          ...mockDashboardData.sections.pagos,
+          metric: pagosMetric,
+          statusText: pagosStatusText,
+          items: pagosItems,
         }
       }
     };
