@@ -14,9 +14,10 @@ export default function ComprasPage() {
     Promise.all([
       fetch("/api/dashboard/compras").then((res) => res.json()),
       fetch("/api/products").then((res) => res.json()),
-      fetch("/api/products/categories").then((res) => res.json())
+      fetch("/api/products/categories").then((res) => res.json()),
+      fetch("/api/products/top").then((res) => res.json())
     ])
-      .then(([comprasPayload, productsPayload, categoriesPayload]: [ComprasSectionData, any, any]) => {
+      .then(([comprasPayload, productsPayload, categoriesPayload, topProductsPayload]: [ComprasSectionData, any, any, any]) => {
         const productCount = Array.isArray(productsPayload)
           ? productsPayload.length
           : comprasPayload.totalPublishedProducts.value;
@@ -53,13 +54,18 @@ export default function ComprasPage() {
             }))
           : comprasPayload.categoriesData;
 
+        const topProducts = Array.isArray(topProductsPayload)
+          ? topProductsPayload
+          : comprasPayload.topProducts;
+
         setData({
           ...comprasPayload,
           totalPublishedProducts: {
             ...comprasPayload.totalPublishedProducts,
             value: productCount
           },
-          categoriesData
+          categoriesData,
+          topProducts
         });
         setLoading(false);
       })

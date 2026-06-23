@@ -3,7 +3,12 @@ import { NextResponse } from "next/server";
 export async function GET() {
   try {
     const sellerBaseUrl = process.env.SELLER_DEPLOY_PATH || "https://proyecto-c-seller-readcycle.vercel.app/";
-    const sellerApiKey = (process.env.BUYER_API_KEY || "apitoken_readcycle_2026").replace(/^"|"$/g, "");
+    const sellerApiKey = process.env.SELLER_API_KEY ? process.env.SELLER_API_KEY.replace(/^"|"$/g, "") : "";
+    
+    if (!sellerApiKey) {
+      throw new Error("SELLER_API_KEY is not defined in environment variables");
+    }
+
     const url = `${sellerBaseUrl.replace(/\/$/, "")}/api/public/products`;
 
     const res = await fetch(url, {
