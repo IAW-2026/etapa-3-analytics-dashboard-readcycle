@@ -13,19 +13,53 @@ export default function ComprasPage() {
   useEffect(() => {
     Promise.all([
       fetch("/api/dashboard/compras").then((res) => res.json()),
-      fetch("/api/products").then((res) => res.json())
+      fetch("/api/products").then((res) => res.json()),
+      fetch("/api/products/categories").then((res) => res.json())
     ])
-      .then(([comprasPayload, productsPayload]: [ComprasSectionData, any]) => {
+      .then(([comprasPayload, productsPayload, categoriesPayload]: [ComprasSectionData, any, any]) => {
         const productCount = Array.isArray(productsPayload)
           ? productsPayload.length
           : comprasPayload.totalPublishedProducts.value;
+
+        const categoryColors: Record<string, string> = {
+          "Ficción": "#2C3A27",      // Forest
+          "Infantiles": "#4A6741",   // Sage
+          "Historia": "#D97757",     // Clay
+          "Científicos": "#A78BFA",  // Purple
+          "Autoayuda": "#FBBF24",    // Yellow
+          "Acción": "#3B82F6",       // Blue
+        };
+
+        const fallbackColors = [
+          "#A78BFA", // Purple
+          "#FBBF24", // Yellow
+          "#3B82F6", // Blue
+          "#EC4899", // Pink
+          "#14B8A6", // Teal
+          "#F97316", // Orange
+          "#6B7280"  // Gray
+        ];
+
+        let colorIndex = 0;
+        const categoriesData = Array.isArray(categoriesPayload)
+          ? categoriesPayload.map((c: { label: string; value: number }) => ({
+              label: c.label,
+              value: c.value,
+              color: categoryColors[c.label] || (() => {
+                const col = fallbackColors[colorIndex % fallbackColors.length];
+                colorIndex++;
+                return col;
+              })()
+            }))
+          : comprasPayload.categoriesData;
 
         setData({
           ...comprasPayload,
           totalPublishedProducts: {
             ...comprasPayload.totalPublishedProducts,
             value: productCount
-          }
+          },
+          categoriesData
         });
         setLoading(false);
       })
